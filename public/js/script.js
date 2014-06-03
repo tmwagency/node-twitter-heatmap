@@ -1,14 +1,21 @@
 var TMW = window.TMW || {};
 
-TMW.TwitterPoll = {
+TMW.TwitterHeatMap = {
 	socket : null,
 
-	wallContent : null,
+	heatMap : null,
+
+	mapOptions : {
+		center: new google.maps.LatLng(54.559322, -4.174804),
+		zoom: 5,
+		mapTypeId: google.maps.MapTypeId.ROADMAP,
+		streetViewControl: false
+	},
 
 
 	init : function () {
 
-		this.wallContent = $('#wall-content');
+		this.heatMap = new google.maps.Map(document.getElementById("heatmap"), this.mapOptions);
 
 		this.makeSocketConnection();
 
@@ -31,14 +38,128 @@ TMW.TwitterPoll = {
 
 		log('script.js :: setupScreen');
 
-		var tags = (state.tags).join(', ');
-
 		//add tags to the screen so we can see what's being tracked
-		$('#tags').innerHTML = tags;
+		//TMW.TwitterHeatMap.heatmap
 
-		TMW.TwitterPoll.EventListeners.onTweet();
+		TMW.TwitterHeatMap.EventListeners.onTweet();
 
 	},
+
+	reactToTweet : function (data) {
+
+		var coords = TMW.TwitterHeatMap.getCoords(data, TMW.TwitterHeatMap.renderTweetToMap);
+
+		//TMW.TwitterHeatMap.renderTweetToMap(coords);
+
+		$('#last-update').innerHTML = new Date().toTimeString();
+
+	},
+
+
+	//gets a set of coordinates from a data object (which is the tweet returned by twitter)
+	getCoords : function (data, cb) {
+
+		//if we have coordinates, great – means we don't have to look up ourselves
+		if (data.coordinates !== null) {
+			var coords = data.coordinates.coordinates;
+			cb (coords);
+
+		//if not, we need to check the 'place' attribute, and do the coord lookup ourself using the Maps API
+		} else {
+			var place = data.place;
+
+			TMW.TwitterHeatMap.lookupCoordsFromPlace(place, function (coords) {
+				cb (coords);
+			});
+		}
+
+	},
+
+
+	//looks up the coordinates using the Maps API from the place details that we were sent by twitter
+	lookupCoordsFromPlace : function (place, cb) {
+
+		var geocoder = new google.maps.Geocoder(),
+			address = place.full_name + ', ' + place.country;
+
+		geocoder.geocode( { 'address': address}, function(results, status) {
+
+			var coords = [];
+			//if we have a good result, then return it
+			if (status = 'OK') {
+				coords[0] = results[0].geometry.location['A'];
+				coords[1] = results[0].geometry.location['k'];
+				cb (coords);
+			}
+
+		});
+
+	},
+
+
+	renderTweetToMap : function (coords, trackedOn) {
+
+		//position: myLatlng,
+		if (coords[0] !== null && coords[1] !== null) {
+
+			//log(coords);
+
+			var pointLatlng = new google.maps.LatLng(coords[1], coords[0]),
+				pointOptions = {
+					strokeColor: '#FF0000',
+					strokeOpacity: 0.8,
+					strokeWeight: 2,
+					fillColor: '#FF0000',
+					fillOpacity: 0.35,
+					map: TMW.TwitterHeatMap.heatMap,
+					center: pointLatlng,
+					radius: 500
+				};
+
+			var pointCircle = new google.maps.Circle(pointOptions);
+
+			TMW.TwitterHeatMap.fadeOutPoint(pointCircle);
+		}
+
+	},
+
+	fadeOutPoint : function (point) {
+
+		var fillOpacity = point.get("fillOpacity");
+
+		//reduce opacity
+		fillOpacity -= 0.02;
+
+		//check that the opacity hasn't passed past 0
+		if (fillOpacity < 0) {
+			fillOpacity = 0;
+		}
+
+		if (fillOpacity > 0) {
+
+
+			strokeOpacity = point.get("strokeOpacity");
+
+			strokeOpacity -= 0.05;
+			if (strokeOpacity < 0) {
+				strokeOpacity = 0;
+			}
+			//repeat animation in next frame
+			//requestAnimFrame(TMW.TwitterHeatMap.fadeOutPoint(point));
+
+		} else {
+
+			//remove our circle as it's now invisible to the canvas
+
+		}
+
+		point.setOptions({
+			fillOpacity:fillOpacity,
+			strokeOpacity:strokeOpacity
+		});
+
+	},
+
 
 	EventListeners : {
 		onPageStart : function () {
@@ -46,7 +167,7 @@ TMW.TwitterPoll = {
 			log('script.js :: event :: onPageStart');
 
 			//will receive this event when a connection is made
-			TMW.TwitterPoll.socket.on('data', TMW.TwitterPoll.setupScreen);
+			TMW.TwitterHeatMap.socket.on('data', TMW.TwitterHeatMap.setupScreen);
 
 
 		},
@@ -55,15 +176,7 @@ TMW.TwitterPoll = {
 			var newListElement;
 
 			//this handles the tweets we receive from our server
-			TMW.TwitterPoll.socket.on('tweet', function(tweet) {
-
-				newListElement = document.createElement('p');
-				newListElement.innerHTML = tweet.text;
-				TMW.TwitterPoll.wallContent.prependChild(newListElement);
-
-				$('#last-update').innerHTML = new Date().toTimeString();
-
-			});
+			TMW.TwitterHeatMap.socket.on('tweet', TMW.TwitterHeatMap.reactToTweet);
 
 		}
 	},
@@ -220,6 +333,20 @@ Element.prototype.prependChild = function(child) { this.insertBefore(child, this
 		};
 	}());
 
+//  =============================================
+//  === shim layer for requestAnimationFrame  ===
+//  === with setTimeout fallback              ===
+//  =============================================
+
+	window.requestAnimFrame = (function(){
+	  return  window.requestAnimationFrame       ||
+			  window.webkitRequestAnimationFrame ||
+			  window.mozRequestAnimationFrame    ||
+			  function( callback ){
+				window.setTimeout(callback, 1000 / 60);
+			  };
+	})();
+
 //  ===========================================
 //  === globals Element:true, NodeList:true ===
 //  ===========================================
@@ -278,4 +405,4 @@ Element.prototype.prependChild = function(child) { this.insertBefore(child, this
 
 
 
-TMW.TwitterPoll.init();
+TMW.TwitterHeatMap.init();

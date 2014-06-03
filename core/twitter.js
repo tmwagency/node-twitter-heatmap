@@ -10,7 +10,11 @@ var express = require('express')
 	, twitter = require('twitter') //ntwitter - allows easy JS access to twitter API's - https://github.com/AvianFlu/ntwitter
 	, _ = require('underscore')
 
-	, pkg = require('../package.json');
+	, pkg = require('../package.json'),
+
+	backoffTimer = 0,
+
+	BACKOFF_INCREMENT = 60000; //increments of a minute
 
 
 
@@ -53,7 +57,7 @@ module.exports = function (app, server, config) {
 	//  === State related function  ===
 	//  ===============================
 	t.globalState = {
-		tags : ['dogs', 'cats']
+		tags : ['']
 	}
 
 	t.openStream = function () {
@@ -69,7 +73,8 @@ module.exports = function (app, server, config) {
 
 		//Tell the twitter API to filter on the watchSymbols
 		t.stream('statuses/filter', {
-			track: t.globalState.tags,
+			//track: t.globalState.tags,
+			locations: '-13.413930,49.162090,1.768960,60.854691',
 			language: 'en'
 		}, function(stream) {
 
@@ -82,17 +87,21 @@ module.exports = function (app, server, config) {
 				//try reconnecting to twitter in 30 seconds
 				setTimeout(function () {
 					t.openStream();
-				}, 30000);
+				}, backoffTimer);
 
 			});
 			stream.on('end', function (response) {
 				// Handle a disconnection
 				console.log("twitter.js: Disconnection: ", response.statusCode);
 
+				if (response.statusCode === '402') {
+					backoffTimer += BACKOFF_INCREMENT; //exponential backoff
+				}
+
 				//try reconnecting to twitter in 30 seconds
 				setTimeout(function () {
 					t.openStream();
-				}, 30000);
+				}, backoffTimer);
 
 			});
 			stream.on('destroy', function (response) {
@@ -102,7 +111,7 @@ module.exports = function (app, server, config) {
 				//try reconnecting to twitter in 30 seconds
 				setTimeout(function () {
 					t.openStream();
-				}, 30000);
+				}, backoffTimer);
 			});
 		});
 
@@ -111,18 +120,13 @@ module.exports = function (app, server, config) {
 	//this function is called any time we receive some data from the twitter stream
 	//we go through the tags, work out which one was mentioned, and then update the GlobalState
 	t.emitTweet = function (data) {
-		console.log('twitter.js: receiving');
+		//console.log('twitter.js: receiving');
 
 		//Make sure it was a valid tweet
 		if (data.text !== undefined) {
 
 			//We're going to do some indexOf comparisons and we want it to be case agnostic
-			tweet = {
-				symbol: null,
-				time: null,
-				text: data.text,
-				country: ''
-			};
+			tweet = data;
 
 			socketServer.sockets.emit('tweet', tweet);
 		}
