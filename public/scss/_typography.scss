@@ -52,7 +52,7 @@ p {
 	font-family: $base-font-family;
 	@include font-size($base-font-size - 2);
 	margin-top: 0;
-	margin-bottom: 12px;
+	margin-bottom: 6px;
 
 	@include respond-min(650) {
 		margin-bottom: $base-line-height + px;
@@ -60,6 +60,10 @@ p {
 
 	@include respond-min($breakpoint-mid) {
 		@include font-size($base-font-size);
+	}
+
+	&:last-child {
+		margin-bottom: 0;
 	}
 
 	// Measure - ideally about 65 chars per line

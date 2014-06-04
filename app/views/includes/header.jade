@@ -2,9 +2,9 @@ header.page-header
 	h2.page-header-title #{title}
 	p
 		| This application uses Node.js to create a streaming connection with Twitter.
-		| Type in your the symbols you would like to watch for and see then streamed in front of your eyes!
-		| The Node application receives this streaming data and broadcasted
-		| to any clients using Socket.io.
+	p
+		| The Node application receives tweets in realtime that are geotagged as being in the UK and passes them to
+		| to any front-end clients currently connected using Socket.io.
 	p
 		em
 			| Last updated:&nbsp;
