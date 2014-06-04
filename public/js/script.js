@@ -5,12 +5,18 @@ TMW.TwitterHeatMap = {
 
 	heatMap : null,
 
+	tweetCircles : [],
+
 	mapOptions : {
 		center: new google.maps.LatLng(54.559322, -4.174804),
 		zoom: 5,
 		mapTypeId: google.maps.MapTypeId.ROADMAP,
-		streetViewControl: false
+		streetViewControl: false,
+		scaleControl: true
 	},
+
+	ANIMATON_DURATION : 60, //assuming 60 frames per second, our animation should last a second (60 frames)
+	FILL_OPACITY : 0.35,
 
 
 	init : function () {
@@ -20,6 +26,10 @@ TMW.TwitterHeatMap = {
 		this.makeSocketConnection();
 
 		this.EventListeners.onPageStart();
+
+		//call the animation loop, which controls animation on the page
+		//at the moment this is the animation of the circles drawn on the google map
+		this.animationLoop();
 
 	},
 
@@ -86,7 +96,7 @@ TMW.TwitterHeatMap = {
 
 			var coords = [];
 			//if we have a good result, then return it
-			if (status = 'OK') {
+			if (results !== null && status === 'OK') {
 				coords[0] = results[0].geometry.location['A'];
 				coords[1] = results[0].geometry.location['k'];
 				cb (coords);
@@ -102,61 +112,99 @@ TMW.TwitterHeatMap = {
 		//position: myLatlng,
 		if (coords[0] !== null && coords[1] !== null) {
 
-			//log(coords);
+			//work out the radius we should use based on the zoom level
+			//TMW.TwitterHeatMap.heatMap.get(zoom);
+			//20000
 
 			var pointLatlng = new google.maps.LatLng(coords[1], coords[0]),
 				pointOptions = {
 					strokeColor: '#FF0000',
 					strokeOpacity: 0.8,
-					strokeWeight: 2,
+					strokeWeight: 1,
 					fillColor: '#FF0000',
-					fillOpacity: 0.35,
+					fillOpacity: TMW.TwitterHeatMap.FILL_OPACITY,
 					map: TMW.TwitterHeatMap.heatMap,
 					center: pointLatlng,
-					radius: 500
+					radius: 20000
 				};
 
 			var pointCircle = new google.maps.Circle(pointOptions);
 
-			TMW.TwitterHeatMap.fadeOutPoint(pointCircle);
+			TMW.TwitterHeatMap.tweetCircles.push(pointCircle);
 		}
 
 	},
 
-	fadeOutPoint : function (point) {
+	animationLoop : function () {
 
-		var fillOpacity = point.get("fillOpacity");
+		TMW.TwitterHeatMap.animateCircles();
 
-		//reduce opacity
-		fillOpacity -= 0.02;
+		requestAnimFrame(TMW.TwitterHeatMap.animationLoop);
 
-		//check that the opacity hasn't passed past 0
-		if (fillOpacity < 0) {
-			fillOpacity = 0;
-		}
+	},
 
-		if (fillOpacity > 0) {
+	animateCircles : function () {
+
+		var i = 0,
+			numberOfCircles = TMW.TwitterHeatMap.tweetCircles.length,
+			point,
+			fillOpacity,
+			fillDecrement,
+			strokeOpacity,
+			strokeDecrement;
+
+		for (i, numberOfCircles; i < numberOfCircles; i++) {
+
+			point = TMW.TwitterHeatMap.tweetCircles[i];
+
+			fillOpacity = point.get("fillOpacity");
+			fillDecrement = (fillOpacity*3) / 100;
 
 
-			strokeOpacity = point.get("strokeOpacity");
-
-			strokeOpacity -= 0.05;
-			if (strokeOpacity < 0) {
-				strokeOpacity = 0;
+			if (fillDecrement < 0.005) {
+				fillDecrement = 0.005;
 			}
-			//repeat animation in next frame
-			//requestAnimFrame(TMW.TwitterHeatMap.fadeOutPoint(point));
 
-		} else {
+			//reduce opacity
+			fillOpacity = fillOpacity - fillDecrement;
 
-			//remove our circle as it's now invisible to the canvas
+			//check that the opacity hasn't passed past 0
+			if (fillOpacity < 0) {
+				fillOpacity = 0;
+			}
 
+			if (fillOpacity > 0) {
+
+				strokeOpacity = point.get("strokeOpacity");
+				strokeDecrement = (strokeOpacity*3.5) / 100;
+
+				if (strokeDecrement < 0.02) {
+					strokeDecrement = 0.02;
+				}
+
+
+				strokeOpacity = strokeOpacity - strokeDecrement;
+
+				if (strokeOpacity < 0) {
+					strokeOpacity = 0;
+				}
+
+				radius = point.get("radius");
+				radius += 450;
+
+				point.setOptions({
+					fillOpacity: fillOpacity,
+					strokeOpacity: strokeOpacity,
+					radius: radius
+				});
+
+			} else {
+
+				//remove our circle as it's now invisible to the canvas
+				point.setMap(null);
+
+			}
 		}
-
-		point.setOptions({
-			fillOpacity:fillOpacity,
-			strokeOpacity:strokeOpacity
-		});
 
 	},
 
@@ -181,11 +229,6 @@ TMW.TwitterHeatMap = {
 		}
 	},
 
-	updateWall : function (tweet) {
-
-
-
-	},
 
 	makeVotesReadable : function (votes) {
 

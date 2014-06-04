@@ -193,7 +193,7 @@ table {
 }
 
 body {
-  font-family: "proxima-nova", sans-serif;
+  font-family: "Karla", sans-serif;
   font-size: 16px;
   font-size: 1rem;
   line-height: 1.4;
@@ -202,11 +202,11 @@ body {
 }
 
 p {
-  font-family: "proxima-nova", sans-serif;
+  font-family: "Karla", sans-serif;
   font-size: 14px;
   font-size: 0.875rem;
   margin-top: 0;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 @media screen and (min-width: 40.625em) {
   p {
@@ -218,6 +218,9 @@ p {
     font-size: 16px;
     font-size: 1rem;
   }
+}
+p:last-child {
+  margin-bottom: 0;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -909,6 +912,16 @@ body {
   border-bottom: 2px solid #2980b9;
 }
 
+.page-header {
+  position: relative;
+  z-index: 20;
+  background: #fff;
+  padding-bottom: 20px;
+}
+.page-header > p {
+  padding: 0 10px;
+}
+
 .page-header-title {
   margin-bottom: 10px;
   padding: 10px;
@@ -929,6 +942,9 @@ body {
 }
 
 .heatmap {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
 }
