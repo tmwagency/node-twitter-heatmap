@@ -1,7 +1,7 @@
 {
-  "name": "node-twitter-wall",
-  "title": "Twitter Streaming Wall",
-  "description": "A example to create a live Twitter wall",
+  "name": "node-twitter-heatmap",
+  "title": "Twitter Streaming Heatmap",
+  "description": "An example to create a live Twitter heatmap",
   "url": "http://www.github.com",
   "version": "0.0.1",
   "private": true,
